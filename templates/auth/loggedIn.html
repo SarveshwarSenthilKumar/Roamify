@@ -3,49 +3,248 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome Back</title>
+    <title>Suggested Trips - Roamify</title>
+    <link rel="icon" href="https://i.ibb.co/q3mbmrGb/icon.png" type="image/png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
             font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            background-color: #f1f1f1;
+            color: #333;
             margin: 0;
-            background-color: #282c34;
+        }
+        .navbar {
+            background-color: rgba(40, 167, 69, 0.8);
             color: white;
+        }
+        .navbar .navbar-brand img {
+            width: 30px;
+            height: 30px;
+        }
+        .hero-section {
             text-align: center;
-            flex-direction: column;
+            padding: 80px 20px;
+            background-image: url('https://northernontario.travel/sites/default/files/styles/banner_xl/public/_Outdoor-Adventure-mountains-in-ontario-Header-.jpg?itok=Ztq6ZsHI');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            border-bottom: 5px solid #28a745;
         }
-        .header {
-            font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .subtext {
-            font-size: 1.2rem;
-            opacity: 0.8;
+        .hero-section h1 {
+            font-size: 3rem;
             margin-bottom: 20px;
         }
-        .logout-button {
-            background-color: transparent;
-            color: #61dafb;
-            border: 2px solid #61dafb;
-            font-size: 1rem;
-            padding: 8px 16px;
+        .hero-section p {
+            font-size: 1.2rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin-top: 50px;
+            padding: 20px;
+        }
+        .activity-card {
+            margin-bottom: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .food-places {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .logout-btn {
+            background-color: #dc3545;
+            color: white;
+            padding: 12px 20px;
+            border: none;
             border-radius: 5px;
             cursor: pointer;
-            transition: background 0.3s, color 0.3s;
+            font-size: 1rem;
+            transition: background 0.3s;
         }
-        .logout-button:hover {
-            background-color: #61dafb;
-            color: black;
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+        .activity-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+        .activity-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        /* 100% width for the first item, and 3 items per row for others */
+        .activity-container .full-width-card {
+            flex: 1 1 100%;
+        }
+        .activity-container .col-md-4 {
+            flex: 1 1 calc(33.333% - 20px);
+        }
+        /* Responsive adjustment for smaller screens */
+        @media (max-width: 767px) {
+            .activity-container .col-md-4 {
+                flex: 1 1 100%;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">Welcome Back to the Flask Development Template</div>
-    <div class="subtext">You are now logged in!</div>
-    <button class="logout-button" onclick="location.href='/auth/logout'">Logout</button>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="/auth/logout">
+                <img src="https://i.ibb.co/q3mbmrGb/icon.png" alt="Roamify Icon" class="me-2">
+                Roamify
+            </a>
+            <div class="ms-auto">
+                <button class="btn btn-light" onclick="window.location.href='/auth/logout'">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <h1>Suggested Outdoor Adventures</h1>
+        <p>Your personalized outdoor adventure suggestions are here! Enjoy your trip planning.</p>
+    </section>
+
+    <!-- Suggestions Section -->
+    <section class="container">
+        <div class="activity-container">
+            {% if suggestions %}
+                {% for suggestion in suggestions %}
+                    <!-- Full Width Card for the first suggestion -->
+                    {% if loop.index == 1 %}
+                        <div class="full-width-card">
+                            <div class="card activity-card">
+                                <img src="{{ suggestion.image_url }}" alt="Activity Image" class="activity-image">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ suggestion.name }}</h5>
+                                    <p class="card-text">{{ suggestion.vicinity }}</p>
+                                    <p><strong>Rating:</strong> 
+                                        {% if suggestion.rating != 'N/A' %}
+                                            {{ suggestion.rating }} / 5⭐️
+                                        {% else %}
+                                            Not available
+                                        {% endif %}
+                                    </p>
+                                    <p><strong>Total Ratings:</strong> 
+                                        {% if suggestion.number_of_ratings != 'N/A' %}
+                                            {{ suggestion.number_of_ratings }} reviews
+                                        {% else %}
+                                            Not available
+                                        {% endif %}
+                                    </p>
+                                    <p><strong>Type:</strong> {{ suggestion.types }}</p>
+
+                                    <!-- Trip Plan Dropdown Button -->
+                                    <div class="dropdown mt-3">
+                                        <button class="btn btn-secondary dropdown-toggle" type="button" id="tripPlanDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            View Generated Trip Plan
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="tripPlanDropdown">
+                                            <li><p class="dropdown-item" style="white-space: pre-line; word-wrap: break-word;">{{ suggestion.trip_plan }}</p></li>
+                                        </ul>
+                                    </div>
+
+                                    {% if suggestion.price_level != 'N/A' %}
+                                        <p><strong>Price Level:</strong> 
+                                            {{ suggestion.price_level }}
+                                        </p>
+                                    {% endif %}
+
+                                    <div class="food-places">
+                                        <h6>Nearby Food Places:</h6>
+                                        {% if suggestion.food_places_nearby %}
+                                            <ul>
+                                                {% for food_place in suggestion.food_places_nearby %}
+                                                    <li>{{ food_place['name'] }} - {{ food_place['vicinity'] }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <p>No nearby food places found.</p>
+                                        {% endif %}
+                                    </div>
+
+                                    <a href="https://www.google.com/maps/dir/?api=1&destination={{ suggestion.latitude }},{{ suggestion.longitude }}" class="btn btn-primary mt-3" target="_blank">Get Directions</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Regular Grid Card for other suggestions -->
+                        <div class="col-md-4">
+                            <div class="card activity-card">
+                                <img src="{{ suggestion.image_url }}" alt="Activity Image" class="activity-image">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ suggestion.name }}</h5>
+                                    <p class="card-text">{{ suggestion.vicinity }}</p>
+
+                                    {% if suggestion.price_level != 'N/A' %}
+                                        <p><strong>Price Level:</strong> 
+                                            {{ suggestion.price_level }}
+                                        </p>
+                                    {% endif %}
+                                    <p><strong>Rating:</strong> 
+                                        {% if suggestion.rating != 'N/A' %}
+                                            {{ suggestion.rating }} / 5⭐️
+                                        {% else %}
+                                            Not available
+                                        {% endif %}
+                                    </p>
+                                    <p><strong>Total Ratings:</strong> 
+                                        {% if suggestion.number_of_ratings != 'N/A' %}
+                                            {{ suggestion.number_of_ratings }} reviews
+                                        {% else %}
+                                            Not available
+                                        {% endif %}
+                                    </p>
+                                    <p><strong>Type:</strong> {{ suggestion.types }}</p>
+
+                                    <!-- Trip Plan Dropdown Button -->
+                                    <div class="dropdown mt-3">
+                                        <button class="btn btn-secondary dropdown-toggle" type="button" id="tripPlanDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            View Generated Trip Plan
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="tripPlanDropdown">
+                                            <li><p class="dropdown-item" style="white-space: pre-line; word-wrap: break-word;">{{ suggestion.trip_plan }}</p></li>
+                                        </ul>
+                                    </div>
+
+                                    <div class="food-places">
+                                        <h6>Nearby Food Places:</h6>
+                                        {% if suggestion.food_places_nearby %}
+                                            <ul>
+                                                {% for food_place in suggestion.food_places_nearby %}
+                                                    <li>{{ food_place['name'] }} - {{ food_place['vicinity'] }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <p>No nearby food places found.</p>
+                                        {% endif %}
+                                    </div>
+
+                                    <a href="https://www.google.com/maps/dir/?api=1&destination={{ suggestion.latitude }},{{ suggestion.longitude }}" class="btn btn-primary mt-3" target="_blank">Get Directions</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <p>No suggestions available at the moment. Please try again later.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-success text-white text-center py-3">
+        <p class="mb-0">&copy; 2025 Roamify. Built with Flask.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

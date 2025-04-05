@@ -1,14 +1,14 @@
-
 from flask import Flask, render_template, request, redirect, session, jsonify
 from flask_session import Session
 from datetime import datetime
 import pytz
-from sql import * #Used for database connection and management
-from SarvAuth import * #Used for user authentication functions
+from sql import *  # Used for database connection and management
+from SarvAuth import *  # Used for user authentication functions
 from auth import auth_blueprint
 import requests
 import google.generativeai as genai
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 # Authentication Encryption Key (Replace with your actual encryption string)
@@ -23,9 +23,9 @@ app.config["SESSION_PERMANENT"] = True
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-autoRun = True #Change to True if you want to run the server automatically by running the app.py file
-port = 5000 #Change to any port of your choice if you want to run the server automatically
-authentication = True #Change to False if you want to disable user authentication
+autoRun = True  # Change to True if you want to run the server automatically by running the app.py file
+port = 5000  # Change to any port of your choice if you want to run the server automatically
+authentication = True  # Change to False if you want to disable user authentication
 
 if authentication:
     app.register_blueprint(auth_blueprint, url_prefix='/auth')
@@ -36,10 +36,36 @@ def chat_with_gemini(prompt):
     response = model.generate_content(prompt)
     return response.text.strip()
 
+def get_place_image_url(place_id):
+    # First, get the Place Details from the Google Places API
+    place_details_url = f"https://maps.googleapis.com/maps/api/place/details/json?placeid={place_id}&key={API_KEY}"
+    
+    # Send a request to the Google Places API
+    response = requests.get(place_details_url)
+    
+    # Check if the response is successful
+    if response.status_code == 200:
+        data = response.json()
+        
+        # Check if the image data is available in the response
+        if "result" in data and "photos" in data["result"]:
+            # Google Places API gives an array of photos, we'll just use the first one
+            photo_reference = data["result"]["photos"][0]["photo_reference"]
+            
+            # Construct the URL for the photo using the photo_reference
+            image_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={photo_reference}&key={API_KEY}"
+            return image_url
+        else:
+            print("No photos found for this place.")
+            return None
+    else:
+        print(f"Error: Unable to fetch details for Place ID {place_id}")
+        return None
+
 # Function to create a personalized trip plan using Gemini
-def create_trip_plan(destination, duration, interests):
+def create_trip_plan(destination):
     # Create the prompt based on user input
-    prompt = f"Do not make the answer in markdown format. Not in .md format, do not add asterisks. just have regular sentences, Create a personalized trip plan to {destination} for {duration} days. The traveler is interested in the following activities: {', '.join(interests)}."
+    prompt = f"Do not make the answer in markdown format. Not in .md format, do not add asterisks. just have regular sentences, Create a personalized trip plan to {destination} for 1 day. Include outdoor activities and food places. Include the name of the place, address, and a brief description of each activity. Make sure to include at least 2 outdoor activities and 2 food places. Do not include any other information. Do not add any other information. Do not add any other information. Do not add any other information."
 
     # Use the chat_with_gemini function to generate the content (trip plan)
     trip_plan = chat_with_gemini(prompt)
@@ -61,7 +87,7 @@ def get_food_places_nearby(lat, lng, radius=1000):
     places = response.json()
 
     if places['status'] == 'OK':
-        return places['results']
+        return places['results'][:5]
     else:
         return []
 
@@ -69,6 +95,7 @@ def get_food_places_nearby(lat, lng, radius=1000):
 def get_outdoor_activities(lat, lng, radius=1000):
     outdoor_types = ['park', 'stadium', 'tourist_attraction', 'gym', 'hiking']
     activities = []
+    seen_activities = set()
 
     # Loop through each outdoor type and make an API request
     for place_type in outdoor_types:
@@ -77,37 +104,45 @@ def get_outdoor_activities(lat, lng, radius=1000):
         places = response.json()
 
         if places['status'] == 'OK':
-            for activity in places['results']:
-                activity_dict = {
-                    'name': activity['name'],
-                    'vicinity': activity.get('vicinity', 'N/A'),
-                    'latitude': activity['geometry']['location']['lat'],
-                    'longitude': activity['geometry']['location']['lng']
-                }
+            for activity in places['results'][:2]:
+                # Create a unique identifier for this activity (name + latitude + longitude)
+                activity_id = (activity['name'], activity['geometry']['location']['lat'], activity['geometry']['location']['lng'])
 
-                # Get food places nearby this activity
-                food_places = get_food_places_nearby(activity_dict['latitude'], activity_dict['longitude'], radius=1000)
-                
-                # Add food places nearby to the activity dictionary
-                activity_dict['food_places_nearby'] = food_places
+                if activity_id not in seen_activities:
+                    # Add the activity ID to the set of seen activities
+                    seen_activities.add(activity_id)
 
-                # Append the activity with its nearby food places to the list of activities
-                activities.append(activity_dict)
+                    # Add the activity details to the activities list
+                    activity_dict = {
+                        'name': activity['name'],
+                        'vicinity': activity.get('vicinity', 'N/A'),
+                        'latitude': activity['geometry']['location']['lat'],
+                        'longitude': activity['geometry']['location']['lng'],
+                        'place_id': activity['place_id'],  # Add the place_id here
+                        "price_level": activity.get('price_level', 'N/A'),  # Ensure we get a default value if not available
+                        "rating": activity.get('rating', 'N/A'),
+                        "number_of_ratings": activity.get('user_ratings_total', 'N/A'),
+                        "types": [t.capitalize() for t in activity.get('types', ['N/A'])][0]  # Capitalize each type
+                    }
+
+                    # Get food places nearby this activity
+                    food_places = get_food_places_nearby(activity_dict['latitude'], activity_dict['longitude'], radius=1000)
+
+                    # Create the trip plan for this activity
+                    activity_dict['trip_plan'] = create_trip_plan(activity_dict['vicinity'])
+
+                    # Add food places nearby to the activity dictionary
+                    activity_dict['food_places_nearby'] = food_places
+
+                    # Add image URL for this activity
+                    activity_dict['image_url'] = get_place_image_url(activity_dict['place_id'])
+
+                    # Append the activity with its nearby food places and image URL to the list of activities
+                    activities.append(activity_dict)
 
     return activities
 
-# Route to get suggestions based on the user's location (from IP)
-@app.route('/get_suggestions', methods=["GET",'POST'])
-def get_suggestions():
-    # Get the user's location from IP
-    lat, lng = get_ip_location()
-
-    # Get nearby outdoor activities
-    suggestions = get_outdoor_activities(lat, lng)
-    trip_plan = (create_trip_plan(suggestions[0]["name"] + " at " +  suggestions[0]["vicinity"], 3, ["food", "outdoor"]))
-    return jsonify(suggestions)
-
-#This route is the base route for the website which renders the index.html file
+# This route is the base route for the website which renders the index.html file
 @app.route("/", methods=["GET", "POST"])
 def index():
     if not authentication:
@@ -116,7 +151,24 @@ def index():
         if not session.get("name"):
             return render_template("index.html", authentication=True)
         else:
-            return render_template("/auth/loggedin.html")
+            # Get the user's location from IP
+            lat, lng = get_ip_location()
+
+            # Get nearby outdoor activities
+            suggestions = get_outdoor_activities(lat, lng)
+
+            # Pass the suggestions (including image_url) to the template
+            return render_template("/auth/loggedin.html", suggestions=suggestions)
+
+@app.route("/sug")
+def sug():
+    # Get the user's location from IP
+    lat, lng = get_ip_location()
+
+    # Get nearby outdoor activities
+    suggestions = get_outdoor_activities(lat, lng)
+
+    return jsonify(suggestions)
 
 if autoRun:
     if __name__ == '__main__':
