@@ -1,6 +1,6 @@
-# 🌲 AI Outdoor Planner
+# 🌲 Roamify
 
-**AI Outdoor Planner** is a personalized web application that helps users discover outdoor activities nearby using AI. Leveraging intelligent recommendations, it generates customized plans based on user preferences, location, and weather.
+**Roamify** is a personalized web application that helps users discover outdoor activities nearby using AI. Leveraging intelligent recommendations, it generates customized plans based on user preferences, location, and weather.
 
 This project is built on top of the [Flask Development Template](https://github.com/SarveshwarSenthilKumar/Flask-Development-Template) to ensure a clean, modular, and scalable foundation for rapid development.
 
