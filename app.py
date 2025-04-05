@@ -7,11 +7,15 @@ from sql import * #Used for database connection and management
 from SarvAuth import * #Used for user authentication functions
 from auth import auth_blueprint
 import requests
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
 # Authentication Encryption Key (Replace with your actual encryption string)
 API_KEY = os.getenv("GOOGLE_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+genai.configure(api_key=GEMINI_API_KEY)
 
 app = Flask(__name__)
 
@@ -26,9 +30,21 @@ authentication = True #Change to False if you want to disable user authenticatio
 if authentication:
     app.register_blueprint(auth_blueprint, url_prefix='/auth')
 
-# Replace with your API key and endpoint (you may need to update this based on Gemini API documentation)
-GEMINI_API_URL = "https://gemini.googleapis.com/v1/create-trip-plan"
-GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY'
+# Function to chat with Gemini (similar to the provided code)
+def chat_with_gemini(prompt):
+    model = genai.GenerativeModel("gemini-2.0-flash-lite")  # Using Gemini model
+    response = model.generate_content(prompt)
+    return response.text.strip()
+
+# Function to create a personalized trip plan using Gemini
+def create_trip_plan(destination, duration, interests):
+    # Create the prompt based on user input
+    prompt = f"Do not make the answer in markdown format. Not in .md format, do not add asterisks. just have regular sentences, Create a personalized trip plan to {destination} for {duration} days. The traveler is interested in the following activities: {', '.join(interests)}."
+
+    # Use the chat_with_gemini function to generate the content (trip plan)
+    trip_plan = chat_with_gemini(prompt)
+
+    return trip_plan
 
 # Function to get the location from the IP address
 def get_ip_location():
@@ -80,8 +96,6 @@ def get_outdoor_activities(lat, lng, radius=1000):
 
     return activities
 
-
-
 # Route to get suggestions based on the user's location (from IP)
 @app.route('/get_suggestions', methods=["GET",'POST'])
 def get_suggestions():
@@ -90,6 +104,7 @@ def get_suggestions():
 
     # Get nearby outdoor activities
     suggestions = get_outdoor_activities(lat, lng)
+    trip_plan = (create_trip_plan(suggestions[0]["name"] + " at " +  suggestions[0]["vicinity"], 3, ["food", "outdoor"]))
     return jsonify(suggestions)
 
 #This route is the base route for the website which renders the index.html file
