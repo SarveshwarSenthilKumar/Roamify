@@ -1,1 +1,2 @@
-Create an app where we tap into user location and offer personalized suggestions on what to do such as activities, food palces, and
+Create an app where we tap into user location and offer personalized suggestions on what to do such as activities, food places, and also an AI generated trip plan
+Create a logo, notes for pitch, name, parking feature
