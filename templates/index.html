@@ -1,54 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flask Development Template</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #282c34;
-            color: white;
-            text-align: center;
-            flex-direction: column;
-        }
-        .header {
-            font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .subtext {
-            font-size: 1.2rem;
-            opacity: 0.8;
-            margin-bottom: 20px;
-        }
-        .login-button {
-            background-color: transparent;
-            color: #61dafb;
-            border: 2px solid #61dafb;
-            font-size: 1rem;
-            padding: 8px 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s, color 0.3s;
-        }
-        .login-button:hover {
-            background-color: #61dafb;
-            color: black;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roamify</title>
+  <link rel="icon" href="https://i.ibb.co/q3mbmrGb/icon.png" type="image/png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="header">Welcome to the Flask Development Template</div>
-    <div class="subtext">Created by Sarveshwar Senthil Kumar</div>
-    {% if authentication == True %}
-    <button class="login-button" onclick="location.href='/auth/login'">Login (Optional)</button>
-    <button class="login-button" style="margin-top: 5px;" onclick="location.href='/auth/signup'">Signup (Optional)</button>
-    {% endif %}
+  <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Roamify</a>
+      <div class="ms-auto">
+        <a href="/login" class="btn btn-outline-light me-2">Log In</a>
+        <a href="/signup" class="btn btn-light">Sign Up</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="bg-light py-5 text-center">
+    <div class="container">
+      <h1 class="display-4">Discover Outdoor Adventures with AI</h1>
+      <p class="lead">Personalized outdoor activity planning powered by intelligent recommendations, location data, and weather awareness.</p>
+      <a href="#features" class="btn btn-success btn-lg mt-3">Explore Features</a>
+    </div>
+  </header>
+
+  <section id="features" class="py-5">
+    <div class="container">
+      <h2 class="text-center mb-4">Features</h2>
+      <div class="row text-center">
+        <div class="col-md-4">
+          <h4>🔍 AI Recommendations</h4>
+          <p>Receive tailored suggestions for nearby outdoor activities like hiking, biking, and local events.</p>
+        </div>
+        <div class="col-md-4">
+          <h4>🗺️ Location-Based</h4>
+          <p>Leverages your current location to find the best adventures close to you.</p>
+        </div>
+        <div class="col-md-4">
+          <h4>🎯 Smart Planning</h4>
+          <p>Generate a custom itinerary based on weather, goals, and preferences.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-light py-5">
+    <div class="container text-center">
+      <h2>Ready to Plan Your Next Adventure?</h2>
+      <p>Start exploring now and let AI handle the details.</p>
+      <a href="/get-started" class="btn btn-outline-success btn-lg">Get Started</a>
+    </div>
+  </section>
+
+  <footer class="bg-success text-white text-center py-3">
+    <p class="mb-0">&copy; 2025 AI Outdoor Planner. Built with Flask.</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -36,4 +36,3 @@ This project is built on top of the [Flask Development Template](https://github.
 ---
 
 ## 📁 Project Structure
-
