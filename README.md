@@ -34,5 +34,3 @@ This project is built on top of the [Flask Development Template](https://github.
 - **Weather API:** (Optional — OpenWeatherMap API or similar)
 
 ---
-
-## 📁 Project Structure
