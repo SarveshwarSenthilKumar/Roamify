@@ -9,6 +9,7 @@ import requests
 import google.generativeai as genai
 from dotenv import load_dotenv
 import os
+from geopy.geocoders import Nominatim
 
 load_dotenv()
 # Authentication Encryption Key (Replace with your actual encryption string)
@@ -63,9 +64,13 @@ def get_place_image_url(place_id):
         return None
 
 # Function to create a personalized trip plan using Gemini
-def create_trip_plan(destination):
-    # Create the prompt based on user input
-    prompt = f"Do not make the answer in markdown format. Not in .md format, do not add asterisks. just have regular sentences, Create a personalized trip plan to {destination} for 1 day. Include outdoor activities and food places. Include the name of the place, address, and a brief description of each activity. Make sure to include at least 2 outdoor activities and 2 food places. Do not include any other information. Do not add any other information. Do not add any other information. Do not add any other information."
+def create_trip_plan(destination, keyword):
+    if keyword == "":
+        # Create the prompt based on user input
+        prompt = f"Do not make the answer in markdown format. Not in .md format, do not add asterisks. just have regular sentences, Create a personalized trip plan to {destination} for 1 day. Include outdoor activities and food places. Include the name of the place, address, and a brief description of each activity. Make sure to include at least 2 outdoor activities and 2 food places. Do not include any other information. Do not add any other information. Do not add any other information. Do not add any other information."
+    else:
+        # Create the prompt based on user input
+        prompt = f"Do not make the answer in markdown format. Not in .md format, do not add asterisks. just have regular sentences, Create a personalized trip plan to {destination} for 1 day catered the activites to {keyword}. Include outdoor activities and food places. Include the name of the place, address, and a brief description of each activity. Make sure to include at least 2 outdoor activities and 2 food places. Do not include any other information. Do not add any other information. Do not add any other information. Do not add any other information."
 
     # Use the chat_with_gemini function to generate the content (trip plan)
     trip_plan = chat_with_gemini(prompt)
@@ -90,15 +95,26 @@ def get_food_places_nearby(lat, lng, radius=1000):
         return places['results'][:5]
     else:
         return []
+    
+# Function to get coordinates from an address using Nominatim
+def get_coordinates(address):
+    geolocator = Nominatim(user_agent="roamify-app")
+    location = geolocator.geocode(address)
+    if location:
+        return location.latitude, location.longitude
+    return None
 
 # Function to fetch outdoor activities (using related place types)
-def get_outdoor_activities(lat, lng, radius=1000):
+def get_outdoor_activities(lat, lng, radius=1000, keyword=""):
+    print(f"Fetching outdoor activities for coordinates: {lat}, {lng} with radius: {radius} and keyword: {keyword}")
+    # Define the types of outdoor activities to search for
     outdoor_types = ['park', 'stadium', 'tourist_attraction', 'gym', 'hiking']
     activities = []
     seen_activities = set()
 
     # Loop through each outdoor type and make an API request
     for place_type in outdoor_types:
+        # Make a request to the Google Places API for outdoor activities
         url = f'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&type={place_type}&key={API_KEY}'
         response = requests.get(url)
         places = response.json()
@@ -129,7 +145,7 @@ def get_outdoor_activities(lat, lng, radius=1000):
                     food_places = get_food_places_nearby(activity_dict['latitude'], activity_dict['longitude'], radius=1000)
 
                     # Create the trip plan for this activity
-                    activity_dict['trip_plan'] = create_trip_plan(activity_dict['vicinity'])
+                    activity_dict['trip_plan'] = create_trip_plan(activity_dict['vicinity'], keyword)
 
                     # Add food places nearby to the activity dictionary
                     activity_dict['food_places_nearby'] = food_places
@@ -154,21 +170,28 @@ def index():
             # Get the user's location from IP
             lat, lng = get_ip_location()
 
+            keyword = ""
+
+            address = request.args.get("address")
+            keyword = request.args.get("keywords")
+
+            if address:
+                # Get coordinates from the address
+                try:
+                    coordinates = get_coordinates(address)
+                except:
+                    coordinates = None
+
+                if coordinates:
+                    lat, lng = coordinates
+                else:
+                    return render_template("loggedin.html", error="Invalid address.")
+
             # Get nearby outdoor activities
-            suggestions = get_outdoor_activities(lat, lng)
+            suggestions = get_outdoor_activities(lat, lng, 1000, keyword)
 
             # Pass the suggestions (including image_url) to the template
             return render_template("/auth/loggedin.html", suggestions=suggestions)
-
-@app.route("/sug")
-def sug():
-    # Get the user's location from IP
-    lat, lng = get_ip_location()
-
-    # Get nearby outdoor activities
-    suggestions = get_outdoor_activities(lat, lng)
-
-    return jsonify(suggestions)
 
 if autoRun:
     if __name__ == '__main__':
