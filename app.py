@@ -1,198 +1,220 @@
-from flask import Flask, render_template, request, redirect, session, jsonify
+from flask import Flask, render_template, request, session
 from flask_session import Session
-from datetime import datetime
-import pytz
-from sql import *  # Used for database connection and management
-from SarvAuth import *  # Used for user authentication functions
-from auth import auth_blueprint
-import requests
 import google.generativeai as genai
-from dotenv import load_dotenv
-import os
 from geopy.geocoders import Nominatim
+import requests
+import os
+from dotenv import load_dotenv
+from functools import lru_cache
+import concurrent.futures
 
+# Load environment variables
 load_dotenv()
-# Authentication Encryption Key (Replace with your actual encryption string)
 API_KEY = os.getenv("GOOGLE_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+# Configure Gemini
 genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-2.0-flash-lite")  # Initialize once
 
+# Initialize Flask app
 app = Flask(__name__)
-
-app.config["SESSION_PERMANENT"] = True
-app.config["SESSION_TYPE"] = "filesystem"
+app.config.update({
+    "SESSION_PERMANENT": True,
+    "SESSION_TYPE": "filesystem",
+    "TEMPLATES_AUTO_RELOAD": True
+})
 Session(app)
 
-autoRun = True  # Change to True if you want to run the server automatically by running the app.py file
-port = 5000  # Change to any port of your choice if you want to run the server automatically
-authentication = True  # Change to False if you want to disable user authentication
+# Configuration
+autoRun = True
+port = 5000
+authentication = True
 
 if authentication:
+    from auth import auth_blueprint
     app.register_blueprint(auth_blueprint, url_prefix='/auth')
 
-# Function to chat with Gemini (similar to the provided code)
-def chat_with_gemini(prompt):
-    model = genai.GenerativeModel("gemini-2.0-flash-lite")  # Using Gemini model
-    response = model.generate_content(prompt)
-    return response.text.strip()
+# Initialize geolocator with timeout
+geolocator = Nominatim(user_agent="roamify-app", timeout=10)
 
-def get_place_image_url(place_id):
-    # First, get the Place Details from the Google Places API
-    place_details_url = f"https://maps.googleapis.com/maps/api/place/details/json?placeid={place_id}&key={API_KEY}"
-    
-    # Send a request to the Google Places API
-    response = requests.get(place_details_url)
-    
-    # Check if the response is successful
-    if response.status_code == 200:
-        data = response.json()
-        
-        # Check if the image data is available in the response
-        if "result" in data and "photos" in data["result"]:
-            # Google Places API gives an array of photos, we'll just use the first one
-            photo_reference = data["result"]["photos"][0]["photo_reference"]
-            
-            # Construct the URL for the photo using the photo_reference
-            image_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={photo_reference}&key={API_KEY}"
-            return image_url
-        else:
-            print("No photos found for this place.")
-            return None
-    else:
-        print(f"Error: Unable to fetch details for Place ID {place_id}")
+# Cached functions
+@lru_cache(maxsize=128)
+def chat_with_gemini(prompt):
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"Gemini error: {e}")
+        return "Unable to generate trip plan at this time."
+
+@lru_cache(maxsize=128)
+def get_coordinates(address):
+    try:
+        location = geolocator.geocode(address)
+        return (location.latitude, location.longitude) if location else None
+    except Exception as e:
+        print(f"Geocoding error: {e}")
         return None
 
-# Function to create a personalized trip plan using Gemini
-def create_trip_plan(destination, keyword):
-    if keyword == "":
-        # Create the prompt based on user input
-        prompt = f"Do not make the answer in markdown format. Not in .md format, do not add asterisks. just have regular sentences, Create a personalized trip plan to {destination} for 1 day. Include outdoor activities and food places. Include the name of the place, address, and a brief description of each activity. Make sure to include at least 2 outdoor activities and 2 food places. Do not include any other information. Do not add any other information. Do not add any other information. Do not add any other information."
-    else:
-        # Create the prompt based on user input
-        prompt = f"Do not make the answer in markdown format. Not in .md format, do not add asterisks. just have regular sentences, Create a personalized trip plan to {destination} for 1 day catered the activites to {keyword}. Include outdoor activities and food places. Include the name of the place, address, and a brief description of each activity. Make sure to include at least 2 outdoor activities and 2 food places. Do not include any other information. Do not add any other information. Do not add any other information. Do not add any other information."
-
-    # Use the chat_with_gemini function to generate the content (trip plan)
-    trip_plan = chat_with_gemini(prompt)
-
-    return trip_plan
-
-# Function to get the location from the IP address
 def get_ip_location():
-    # Use ipinfo.io to get location information from the user's IP address
-    response = requests.get('https://ipinfo.io/json')
-    data = response.json()
-    location = data['loc'].split(',')
-    return float(location[0]), float(location[1])
-
-# Function to fetch food places near a given latitude and longitude
-def get_food_places_nearby(lat, lng, radius=1000):
-    food_places_url = f'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&type=restaurant&key={API_KEY}'
-    response = requests.get(food_places_url)
-    places = response.json()
-
-    if places['status'] == 'OK':
-        return places['results'][:5]
-    else:
-        return []
+    try:
+        response = requests.get('https://ipinfo.io/json', timeout=3)
+        data = response.json()
+        location = data['loc'].split(',')
+        return float(location[0]), float(location[1])
+    except Exception as e:
+        print(f"IP location error: {e}")
+        return (37.7749, -122.4194)  # Default fallback
     
-# Function to get coordinates from an address using Nominatim
-def get_coordinates(address):
-    geolocator = Nominatim(user_agent="roamify-app")
-    location = geolocator.geocode(address)
-    if location:
-        return location.latitude, location.longitude
-    return None
+def get_food_places_nearby(lat, lng, radius=1000):
+    """Fetch nearby food places - now defined before being called"""
+    try:
+        food_places_url = f'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&type=restaurant&key={API_KEY}'
+        response = requests.get(food_places_url, timeout=5)
+        places = response.json()
+        return places.get('results', [])[:5] if places.get('status') == 'OK' else []
+    except Exception as e:
+        print(f"Food places error: {e}")
+        return []
 
-# Function to fetch outdoor activities (using related place types)
-def get_outdoor_activities(lat, lng, radius=1000, keyword=""):
-    print(f"Fetching outdoor activities for coordinates: {lat}, {lng} with radius: {radius} and keyword: {keyword}")
-    # Define the types of outdoor activities to search for
-    outdoor_types = ['park', 'stadium', 'tourist_attraction', 'gym', 'hiking']
+def get_place_image_url(place_id):
+    try:
+        place_details_url = f"https://maps.googleapis.com/maps/api/place/details/json?placeid={place_id}&key={API_KEY}"
+        response = requests.get(place_details_url, timeout=5)
+        data = response.json()
+        
+        if "result" in data and "photos" in data["result"]:
+            photo_reference = data["result"]["photos"][0]["photo_reference"]
+            return f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={photo_reference}&key={API_KEY}"
+        return None
+    except Exception as e:
+        print(f"Image URL error: {e}")
+        return None
+
+def create_trip_plan(destination, activity, keyword=""):
+    prompt = (
+        f"Do not make the answer in markdown format. Not in .md format, do not add asterisks. "
+        f"just have regular sentences, Create a personalized trip plan to {activity} at {destination} for 1 day "
+        f"{f'catered the activites to {keyword}' if keyword else ''}. Include outdoor activities and food places. "
+        "Include the name of the place, address, and a brief description of each activity. "
+        "Make sure to include at least 2 outdoor activities and 2 food places. "
+        "Do not include any other information."
+    )
+    return chat_with_gemini(prompt)
+
+def fetch_places_parallel(urls):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [executor.submit(requests.get, url, timeout=5) for url in urls]
+        results = []
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                results.append(future.result().json())
+            except Exception as e:
+                print(f"Request error: {e}")
+                results.append({'status': 'ERROR'})
+        return results
+
+def process_activity(activity, keyword, radius):
+
+    reverse_place_types = {}
+    with open('types.txt', 'r') as file:
+        for line in file:
+            parts = line.strip().split(",", 1)  # Split on first whitespace
+            if len(parts) == 2:
+                first, second = parts
+                reverse_place_types[second] = first
+
+    activity_dict = {
+        'name': activity['name'],
+        'vicinity': activity.get('vicinity', 'N/A'),
+        'latitude': activity['geometry']['location']['lat'],
+        'longitude': activity['geometry']['location']['lng'],
+        'place_id': activity['place_id'],
+        "price_level": activity.get('price_level', 'N/A'),
+        "rating": activity.get('rating', 'N/A'),
+        "number_of_ratings": activity.get('user_ratings_total', 'N/A'),
+        "types": reverse_place_types.get(activity.get('types', ['N/A'])[0], "Unknown Type")
+
+    }
+    
+    # Process food places and image in parallel
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_food = executor.submit(get_food_places_nearby, activity_dict['latitude'], activity_dict['longitude'], radius)
+        future_image = executor.submit(get_place_image_url, activity_dict['place_id'])
+        future_plan = executor.submit(create_trip_plan, activity_dict['vicinity'], activity_dict['name'], keyword)
+        
+        activity_dict['food_places_nearby'] = future_food.result()
+        activity_dict['image_url'] = future_image.result()
+        activity_dict['trip_plan'] = future_plan.result()
+    
+    return activity_dict
+
+def get_outdoor_activities(lat, lng, radius=1000, keyword="", outdoor_types=None):
+    urls = [
+        f'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&type={place_type}&key={API_KEY}'
+        for place_type in outdoor_types
+    ]
+    
+    places_results = fetch_places_parallel(urls)
     activities = []
     seen_activities = set()
 
-    # Loop through each outdoor type and make an API request
-    for place_type in outdoor_types:
-        # Make a request to the Google Places API for outdoor activities
-        url = f'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&type={place_type}&key={API_KEY}'
-        response = requests.get(url)
-        places = response.json()
-
-        if places['status'] == 'OK':
+    for places in places_results:
+        if places.get('status') == 'OK':
             for activity in places['results'][:2]:
-                # Create a unique identifier for this activity (name + latitude + longitude)
                 activity_id = (activity['name'], activity['geometry']['location']['lat'], activity['geometry']['location']['lng'])
-
+                
                 if activity_id not in seen_activities:
-                    # Add the activity ID to the set of seen activities
                     seen_activities.add(activity_id)
-
-                    # Add the activity details to the activities list
-                    activity_dict = {
-                        'name': activity['name'],
-                        'vicinity': activity.get('vicinity', 'N/A'),
-                        'latitude': activity['geometry']['location']['lat'],
-                        'longitude': activity['geometry']['location']['lng'],
-                        'place_id': activity['place_id'],  # Add the place_id here
-                        "price_level": activity.get('price_level', 'N/A'),  # Ensure we get a default value if not available
-                        "rating": activity.get('rating', 'N/A'),
-                        "number_of_ratings": activity.get('user_ratings_total', 'N/A'),
-                        "types": [t.capitalize() for t in activity.get('types', ['N/A'])][0]  # Capitalize each type
-                    }
-
-                    # Get food places nearby this activity
-                    food_places = get_food_places_nearby(activity_dict['latitude'], activity_dict['longitude'], radius=1000)
-
-                    # Create the trip plan for this activity
-                    activity_dict['trip_plan'] = create_trip_plan(activity_dict['vicinity'], keyword)
-
-                    # Add food places nearby to the activity dictionary
-                    activity_dict['food_places_nearby'] = food_places
-
-                    # Add image URL for this activity
-                    activity_dict['image_url'] = get_place_image_url(activity_dict['place_id'])
-
-                    # Append the activity with its nearby food places and image URL to the list of activities
-                    activities.append(activity_dict)
-
+                    activities.append(process_activity(activity, keyword, radius))
+    
     return activities
 
-# This route is the base route for the website which renders the index.html file
 @app.route("/", methods=["GET", "POST"])
 def index():
     if not authentication:
         return render_template("index.html")
-    else:
-        if not session.get("name"):
-            return render_template("index.html", authentication=True)
-        else:
-            # Get the user's location from IP
-            lat, lng = get_ip_location()
+    
+    if not session.get("name"):
+        return render_template("index.html", authentication=True)
+    
+    try:
+        # Get location
+        lat, lng = get_ip_location()
+        keyword = request.args.get("keywords", "")
+        place_types = request.args.getlist("place_types")
 
-            keyword = ""
+        standard_place_types = ['park', 'stadium', 'tourist_attraction', 'gym', 'hiking']
 
-            address = request.args.get("address")
-            keyword = request.args.get("keywords")
+        reversed_place_types = {}
 
-            if address:
-                # Get coordinates from the address
-                try:
-                    coordinates = get_coordinates(address)
-                except:
-                    coordinates = None
+        with open('types.txt', 'r') as file:
+            for line in file:
+                parts = line.strip().split(",", 1)  # Split on first whitespace
+                if len(parts) == 2:
+                    first, second = parts
+                    reversed_place_types[first] = second
 
-                if coordinates:
-                    lat, lng = coordinates
-                else:
-                    return render_template("loggedin.html", error="Invalid address.")
+        converted_place_types = [reversed_place_types.get(place_type) for place_type in place_types]
 
-            # Get nearby outdoor activities
-            suggestions = get_outdoor_activities(lat, lng, 1000, keyword)
+        if len(converted_place_types) > 0:
+            standard_place_types = converted_place_types
+        
+        if address := request.args.get("address"):
+            if coordinates := get_coordinates(address):
+                lat, lng = coordinates
+        
+        # Get place types (consider moving this outside the route)
+        with open('types.txt', 'r') as file:
+            place_types = [line.strip().split(",")[0] for line in file.readlines()]
+        
+        suggestions = get_outdoor_activities(lat, lng, 1000, keyword, standard_place_types)
+        return render_template("/auth/loggedIn.html", suggestions=suggestions, place_types=place_types)
+    
+    except Exception as e:
+        print(f"Route error: {e}")
+        return render_template("/auth/loggedIn.html", error="An error occurred")
 
-            # Pass the suggestions (including image_url) to the template
-            return render_template("/auth/loggedin.html", suggestions=suggestions)
-
-if autoRun:
-    if __name__ == '__main__':
-        app.run(debug=True, port=port)
+if __name__ == '__main__' and autoRun:
+    app.run(debug=True, port=port)
