@@ -1,0 +1,76 @@
+🌟 Core Feature Enhancements
+🔖 Save Trip Ideas (Wishlist Feature)
+
+Let users save trip suggestions they like.
+
+Store the name, address, image, and Gemini-generated trip description.
+
+Add a "Saved Trips" section where users can view and manage them.
+
+🧠 Smart Suggestions Based on Interests
+
+Ask users to select interests (e.g., nature, history, adventure, food).
+
+Customize activity recommendations accordingly.
+
+📍 Custom Routes & Maps
+
+Integrate Google Maps to show the route between activities.
+
+Allow users to reorder locations and export it to Google Maps.
+
+🗓️ Multi-Day Trip Planning
+
+Extend trip plans from 1 day to multiple days.
+
+Gemini can generate plans broken down into Day 1, Day 2, etc.
+
+🎯 Add Filters (distance, rating, price)
+
+Let users filter activities by distance, average rating, price level, etc.
+
+🎨 UI/UX Improvements
+🌓 Dark Mode / Light Mode Toggle
+
+Let users switch themes easily (especially for mobile users).
+
+🎞️ Image Carousel for Places
+
+Show more than one photo if available using a simple slider.
+
+🗣️ Interactive Chat Mode
+
+Let users chat with Gemini (in-app) to build a plan in real time.
+
+🧭 Personalization & Engagement
+🧳 Travel Log / Journal Feature
+
+Users can add notes or photos to trips they’ve taken.
+
+“I went here” button to track visited spots.
+
+🏆 Badges for Exploration
+
+Give badges for exploring different types of places or completing saved trips.
+
+📬 Email Trip Plans
+
+Let users email themselves their trip itinerary.
+
+🌐 Language Toggle / Multilingual Support
+
+Offer support for other languages for international users.
+
+🔐 Account & Data Features
+💾 Save Trips to Account
+
+When logged in, users can save trips to their profile across devices.
+
+🧩 Export Trip as PDF / Shareable Link
+
+Let users download a printable itinerary or share with friends.
+
+💬 Review System for Activities
+
+Allow users to add comments/reviews on suggested spots.
+
