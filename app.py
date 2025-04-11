@@ -184,6 +184,7 @@ def index():
         lat, lng = get_ip_location()
         keyword = request.args.get("keywords", "")
         place_types = request.args.getlist("place_types")
+        radius = request.args.get("radius", default=1, type=int)
 
         standard_place_types = ['park', 'stadium', 'tourist_attraction', 'gym', 'hiking']
 
@@ -209,7 +210,7 @@ def index():
         with open('types.txt', 'r') as file:
             place_types = [line.strip().split(",")[0] for line in file.readlines()]
         
-        suggestions = get_outdoor_activities(lat, lng, 1000, keyword, standard_place_types)
+        suggestions = get_outdoor_activities(lat, lng, radius*1000, keyword, standard_place_types)
         return render_template("/auth/loggedIn.html", suggestions=suggestions, place_types=place_types)
     
     except Exception as e:
