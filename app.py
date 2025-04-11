@@ -15,7 +15,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Configure Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-2.0-flash-lite")  # Initialize once
+model = genai.GenerativeModel("gemini-2.0-flash-lite")  # Singleton model
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -26,19 +26,32 @@ app.config.update({
 })
 Session(app)
 
-# Configuration
+# App-wide configuration
 autoRun = True
 port = 5000
 authentication = True
 
+# Load types once
+PLACE_TYPES_MAP = {}
+REVERSE_PLACE_TYPES = {}
+
+with open('types.txt', 'r') as file:
+    for line in file:
+        parts = line.strip().split(",", 1)
+        if len(parts) == 2:
+            k, v = parts
+            PLACE_TYPES_MAP[k] = v
+            REVERSE_PLACE_TYPES[v] = k
+
+# Register authentication if enabled
 if authentication:
     from auth import auth_blueprint
     app.register_blueprint(auth_blueprint, url_prefix='/auth')
 
-# Initialize geolocator with timeout
+# Geolocator instance
 geolocator = Nominatim(user_agent="roamify-app", timeout=10)
 
-# Cached functions
+# Cached Gemini chat
 @lru_cache(maxsize=128)
 def chat_with_gemini(prompt):
     try:
@@ -48,6 +61,7 @@ def chat_with_gemini(prompt):
         print(f"Gemini error: {e}")
         return "Unable to generate trip plan at this time."
 
+# Cached geocoding
 @lru_cache(maxsize=128)
 def get_coordinates(address):
     try:
@@ -60,18 +74,16 @@ def get_coordinates(address):
 def get_ip_location():
     try:
         response = requests.get('https://ipinfo.io/json', timeout=3)
-        data = response.json()
-        location = data['loc'].split(',')
+        location = response.json()['loc'].split(',')
         return float(location[0]), float(location[1])
     except Exception as e:
         print(f"IP location error: {e}")
-        return (37.7749, -122.4194)  # Default fallback
-    
+        return (37.7749, -122.4194)
+
 def get_food_places_nearby(lat, lng, radius=1000):
-    """Fetch nearby food places - now defined before being called"""
     try:
-        food_places_url = f'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&type=restaurant&key={API_KEY}'
-        response = requests.get(food_places_url, timeout=5)
+        url = f'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&type=restaurant&key={API_KEY}'
+        response = requests.get(url, timeout=5)
         places = response.json()
         return places.get('results', [])[:5] if places.get('status') == 'OK' else []
     except Exception as e:
@@ -80,23 +92,22 @@ def get_food_places_nearby(lat, lng, radius=1000):
 
 def get_place_image_url(place_id):
     try:
-        place_details_url = f"https://maps.googleapis.com/maps/api/place/details/json?placeid={place_id}&key={API_KEY}"
-        response = requests.get(place_details_url, timeout=5)
+        url = f"https://maps.googleapis.com/maps/api/place/details/json?placeid={place_id}&key={API_KEY}"
+        response = requests.get(url, timeout=5)
         data = response.json()
-        
-        if "result" in data and "photos" in data["result"]:
-            photo_reference = data["result"]["photos"][0]["photo_reference"]
-            return f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={photo_reference}&key={API_KEY}"
-        return None
+        photos = data.get("result", {}).get("photos", [])
+        if photos:
+            ref = photos[0]["photo_reference"]
+            return f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={ref}&key={API_KEY}"
     except Exception as e:
         print(f"Image URL error: {e}")
-        return None
+    return None
 
 def create_trip_plan(destination, activity, keyword=""):
     prompt = (
         f"Do not make the answer in markdown format. Not in .md format, do not add asterisks. "
-        f"just have regular sentences, Create a personalized trip plan to {activity} at {destination} for 1 day "
-        f"{f'catered the activites to {keyword}' if keyword else ''}. Include outdoor activities and food places. "
+        f"Just have regular sentences. Create a personalized trip plan to {activity} at {destination} for 1 day "
+        f"{f'catered to {keyword}' if keyword else ''}. Include outdoor activities and food places. "
         "Include the name of the place, address, and a brief description of each activity. "
         "Make sure to include at least 2 outdoor activities and 2 food places. "
         "Do not include any other information."
@@ -116,59 +127,48 @@ def fetch_places_parallel(urls):
         return results
 
 def process_activity(activity, keyword, radius):
-
-    reverse_place_types = {}
-    with open('types.txt', 'r') as file:
-        for line in file:
-            parts = line.strip().split(",", 1)  # Split on first whitespace
-            if len(parts) == 2:
-                first, second = parts
-                reverse_place_types[second] = first
-
-    activity_dict = {
+    location = activity['geometry']['location']
+    types = activity.get('types', ['N/A'])
+    return_dict = {
         'name': activity['name'],
         'vicinity': activity.get('vicinity', 'N/A'),
-        'latitude': activity['geometry']['location']['lat'],
-        'longitude': activity['geometry']['location']['lng'],
+        'latitude': location['lat'],
+        'longitude': location['lng'],
         'place_id': activity['place_id'],
-        "price_level": activity.get('price_level', 'N/A'),
-        "rating": activity.get('rating', 'N/A'),
-        "number_of_ratings": activity.get('user_ratings_total', 'N/A'),
-        "types": reverse_place_types.get(activity.get('types', ['N/A'])[0], "Unknown Type")
-
+        'price_level': activity.get('price_level', 'N/A'),
+        'rating': activity.get('rating', 'N/A'),
+        'number_of_ratings': activity.get('user_ratings_total', 'N/A'),
+        'types': REVERSE_PLACE_TYPES.get(types[0], 'Unknown Type')
     }
-    
-    # Process food places and image in parallel
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_food = executor.submit(get_food_places_nearby, activity_dict['latitude'], activity_dict['longitude'], radius)
-        future_image = executor.submit(get_place_image_url, activity_dict['place_id'])
-        future_plan = executor.submit(create_trip_plan, activity_dict['vicinity'], activity_dict['name'], keyword)
-        
-        activity_dict['food_places_nearby'] = future_food.result()
-        activity_dict['image_url'] = future_image.result()
-        activity_dict['trip_plan'] = future_plan.result()
-    
-    return activity_dict
+        future_food = executor.submit(get_food_places_nearby, return_dict['latitude'], return_dict['longitude'], radius)
+        future_image = executor.submit(get_place_image_url, return_dict['place_id'])
+        future_plan = executor.submit(create_trip_plan, return_dict['vicinity'], return_dict['name'], keyword)
+        return_dict.update({
+            'food_places_nearby': future_food.result(),
+            'image_url': future_image.result(),
+            'trip_plan': future_plan.result()
+        })
+
+    return return_dict
 
 def get_outdoor_activities(lat, lng, radius=1000, keyword="", outdoor_types=None):
     urls = [
-        f'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&type={place_type}&key={API_KEY}'
-        for place_type in outdoor_types
+        f'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&type={ptype}&key={API_KEY}'
+        for ptype in outdoor_types
     ]
-    
     places_results = fetch_places_parallel(urls)
     activities = []
-    seen_activities = set()
+    seen = set()
 
     for places in places_results:
         if places.get('status') == 'OK':
-            for activity in places['results'][:2]:
-                activity_id = (activity['name'], activity['geometry']['location']['lat'], activity['geometry']['location']['lng'])
-                
-                if activity_id not in seen_activities:
-                    seen_activities.add(activity_id)
-                    activities.append(process_activity(activity, keyword, radius))
-    
+            for result in places['results'][:2]:
+                uid = (result['name'], result['geometry']['location']['lat'], result['geometry']['location']['lng'])
+                if uid not in seen:
+                    seen.add(uid)
+                    activities.append(process_activity(result, keyword, radius))
     return activities
 
 @app.route("/", methods=["GET", "POST"])
@@ -178,40 +178,24 @@ def index():
     
     if not session.get("name"):
         return render_template("index.html", authentication=True)
-    
+
     try:
-        # Get location
         lat, lng = get_ip_location()
         keyword = request.args.get("keywords", "")
-        place_types = request.args.getlist("place_types")
+        selected_types = request.args.getlist("place_types")
         radius = request.args.get("radius", default=1, type=int)
 
-        standard_place_types = ['park', 'stadium', 'tourist_attraction', 'gym', 'hiking']
+        # Resolve types
+        outdoor_types = [PLACE_TYPES_MAP.get(t) for t in selected_types if PLACE_TYPES_MAP.get(t)]
+        if not outdoor_types:
+            outdoor_types = ['park', 'stadium', 'tourist_attraction', 'gym', 'hiking']
 
-        reversed_place_types = {}
-
-        with open('types.txt', 'r') as file:
-            for line in file:
-                parts = line.strip().split(",", 1)  # Split on first whitespace
-                if len(parts) == 2:
-                    first, second = parts
-                    reversed_place_types[first] = second
-
-        converted_place_types = [reversed_place_types.get(place_type) for place_type in place_types]
-
-        if len(converted_place_types) > 0:
-            standard_place_types = converted_place_types
-        
         if address := request.args.get("address"):
             if coordinates := get_coordinates(address):
                 lat, lng = coordinates
-        
-        # Get place types (consider moving this outside the route)
-        with open('types.txt', 'r') as file:
-            place_types = [line.strip().split(",")[0] for line in file.readlines()]
-        
-        suggestions = get_outdoor_activities(lat, lng, radius*1000, keyword, standard_place_types)
-        return render_template("/auth/loggedIn.html", suggestions=suggestions, place_types=place_types)
+
+        suggestions = get_outdoor_activities(lat, lng, radius * 1000, keyword, outdoor_types)
+        return render_template("/auth/loggedIn.html", suggestions=suggestions, place_types=list(PLACE_TYPES_MAP.keys()))
     
     except Exception as e:
         print(f"Route error: {e}")
