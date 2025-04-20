@@ -4,6 +4,7 @@ import google.generativeai as genai
 from geopy.geocoders import Nominatim
 import requests
 import os
+import time
 from dotenv import load_dotenv
 from functools import lru_cache
 import concurrent.futures
@@ -15,14 +16,20 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Configure Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-2.0-flash-lite")  # Singleton model
+model = genai.GenerativeModel(
+    "gemini-1.5-flash",
+    generation_config={
+        "max_output_tokens": 2048,
+        "temperature": 0.5
+    }
+)
 
 # Initialize Flask app
 app = Flask(__name__)
 app.config.update({
     "SESSION_PERMANENT": True,
     "SESSION_TYPE": "filesystem",
-    "TEMPLATES_AUTO_RELOAD": True
+    "TEMPLATES_AUTO_RELOAD": True,
 })
 Session(app)
 
@@ -51,15 +58,27 @@ if authentication:
 # Geolocator instance
 geolocator = Nominatim(user_agent="roamify-app", timeout=10)
 
-# Cached Gemini chat
+# Improved Gemini chat with retries and backoff
 @lru_cache(maxsize=128)
 def chat_with_gemini(prompt):
-    try:
-        response = model.generate_content(prompt)
-        return response.text.strip()
-    except Exception as e:
-        print(f"Gemini error: {e}")
-        return "Unable to generate trip plan at this time."
+    max_retries = 3
+    base_delay = 2  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            response = model.generate_content(prompt, request_options={"timeout": 120})
+            return response.text.strip()
+        except Exception as e:
+            print(f"Gemini error (attempt {attempt + 1}): {e}")
+            if attempt == max_retries - 1:
+                return "Our trip planning service is currently experiencing high demand. Please try again later."
+            
+            # Exponential backoff
+            delay = base_delay * (2 ** attempt)
+            print(f"Retrying in {delay} seconds...")
+            time.sleep(delay)
+    
+    return "Unable to generate trip plan at this time."
 
 # Cached geocoding
 @lru_cache(maxsize=128)
@@ -78,7 +97,7 @@ def get_ip_location():
         return float(location[0]), float(location[1])
     except Exception as e:
         print(f"IP location error: {e}")
-        return (37.7749, -122.4194)
+        return (37.7749, -122.4194)  # Default to San Francisco coordinates
 
 def get_food_places_nearby(lat, lng, radius=1000):
     try:
@@ -183,7 +202,7 @@ def index():
         lat, lng = get_ip_location()
         keyword = request.args.get("keywords", "")
         selected_types = request.args.getlist("place_types")
-        radius = request.args.get("radius", default=1, type=int)
+        radius = request.args.get("radius", default=1, type=int) * 1000  # Convert km to meters
 
         # Resolve types
         outdoor_types = [PLACE_TYPES_MAP.get(t) for t in selected_types if PLACE_TYPES_MAP.get(t)]
@@ -194,12 +213,17 @@ def index():
             if coordinates := get_coordinates(address):
                 lat, lng = coordinates
 
-        suggestions = get_outdoor_activities(lat, lng, radius * 1000, keyword, outdoor_types)
-        return render_template("/auth/loggedIn.html", suggestions=suggestions, place_types=list(PLACE_TYPES_MAP.keys()))
+        suggestions = get_outdoor_activities(lat, lng, radius, keyword, outdoor_types)
+        return render_template("/auth/loggedIn.html", 
+                             suggestions=suggestions, 
+                             place_types=list(PLACE_TYPES_MAP.keys()),
+                             radius=radius//1000)  # Convert back to km for display
     
     except Exception as e:
         print(f"Route error: {e}")
-        return render_template("/auth/loggedIn.html", error="An error occurred")
+        return render_template("/auth/loggedIn.html", 
+                             error="Our service is currently experiencing high demand. Please try again later.",
+                             place_types=list(PLACE_TYPES_MAP.keys()))
 
 if __name__ == '__main__' and autoRun:
     app.run(debug=True, port=port)
