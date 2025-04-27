@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roamify | AI-Powered Adventure Discovery</title>
+  <link rel="icon" href="https://i.ibb.co/q3mbmrGb/icon.png" type="image/png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #28a745;
+      --primary-dark: #218838;
+      --secondary: #17a2b8;
+      --dark: #343a40;
+      --light: #f8f9fa;
+      --gradient: linear-gradient(135deg, #28a745 0%, #17a2b8 100%);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: white;
+      color: var(--dark);
+      overflow-x: hidden;
+      overflow-y: hidden;
+      height: 100vh;
+    }
+
+    .slide-container {
+      position: relative;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    .slide {
+      width: 100vw;
+      height: 100vh;
+      padding: 80px 10% 60px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      overflow: hidden;
+      transition: transform 0.5s ease;
+      transform: translateX(100%);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .slide.active {
+      transform: translateX(0);
+    }
+
+    .slide-header {
+      min-height: 120px;
+      margin-bottom: 20px;
+    }
+
+    .slide-title {
+      font-size: 2.8rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.2;
+    }
+
+    .slide-subtitle {
+      font-size: 1.3rem;
+      color: #6c757d;
+      margin-bottom: 1rem;
+      max-width: 800px;
+    }
+
+    .slide-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid rgba(40, 167, 69, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      height: 100%;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(40, 167, 69, 0.1);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.8rem;
+      color: var(--primary);
+    }
+
+    .card-content {
+      color: #6c757d;
+      line-height: 1.5;
+      font-size: 0.95rem;
+      overflow: hidden;
+    }
+
+    .card-content li {
+      margin-bottom: 0.4rem;
+      padding-left: 1rem;
+    }
+
+    .card-content li::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: var(--secondary);
+    }
+
+    /* Custom animated icons */
+    .tech-icon {
+      width: 100%;
+      height: 200px;
+      margin: 1rem 0;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Cover slide icon */
+    .app-icon {
+      width: 180px;
+      height: 350px;
+      background: url('https://via.placeholder.com/300x500') no-repeat center center;
+      background-size: contain;
+      position: relative;
+      animation: float 4s ease-in-out infinite;
+      border-radius: 30px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Problem slide icons */
+    .confused-icon {
+      width: 100px;
+      height: 100px;
+      position: relative;
+      animation: shake 3s infinite;
+    }
+
+    .confused-icon::before {
+      content: '🤔';
+      font-size: 80px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .weather-icon {
+      width: 100px;
+      height: 100px;
+      position: relative;
+      animation: pulse 2s infinite;
+    }
+
+    .weather-icon::before {
+      content: '⛈️';
+      font-size: 80px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .location-icon {
+      width: 100px;
+      height: 100px;
+      position: relative;
+      animation: wobble 3s infinite;
+    }
+
+    .location-icon::before {
+      content: '📍';
+      font-size: 80px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Solution slide icon */
+    .ai-icon {
+      width: 200px;
+      height: 200px;
+      position: relative;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    .ai-icon::before {
+      content: '🤖';
+      font-size: 120px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Market opportunity icon */
+    .market-icon {
+      width: 120px;
+      height: 120px;
+      position: relative;
+    }
+
+    .market-icon .pie {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 10px solid transparent;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      animation: rotate 8s linear infinite;
+    }
+
+    .market-icon .pie:nth-child(1) {
+      border-top-color: var(--primary);
+      border-right-color: var(--primary);
+    }
+
+    .market-icon .pie:nth-child(2) {
+      border-bottom-color: var(--secondary);
+      border-left-color: var(--secondary);
+      animation-direction: reverse;
+    }
+
+    /* Business model icon */
+    .business-icon {
+      width: 120px;
+      height: 120px;
+      position: relative;
+    }
+
+    .business-icon .cube {
+      width: 60px;
+      height: 60px;
+      position: absolute;
+      top: 30px;
+      left: 30px;
+      transform-style: preserve-3d;
+      animation: spin 8s linear infinite;
+    }
+
+    .business-icon .face {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border: 2px solid var(--primary);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 12px;
+      color: var(--primary);
+    }
+
+    .business-icon .front { transform: translateZ(30px); }
+    .business-icon .back { transform: rotateY(180deg) translateZ(30px); }
+    .business-icon .right { transform: rotateY(90deg) translateZ(30px); }
+    .business-icon .left { transform: rotateY(-90deg) translateZ(30px); }
+    .business-icon .top { transform: rotateX(90deg) translateZ(30px); }
+    .business-icon .bottom { transform: rotateX(-90deg) translateZ(30px); }
+
+    /* Financials icon */
+    .financial-icon {
+      width: 120px;
+      height: 120px;
+      position: relative;
+    }
+
+    .financial-icon .graph {
+      position: absolute;
+      width: 100px;
+      height: 80px;
+      bottom: 0;
+      left: 10px;
+      border-left: 2px solid var(--primary);
+      border-bottom: 2px solid var(--primary);
+    }
+
+    .financial-icon .bar {
+      position: absolute;
+      bottom: 0;
+      width: 15px;
+      background: var(--gradient);
+      animation: grow 2s ease-out forwards;
+    }
+
+    .financial-icon .bar:nth-child(1) { height: 30px; left: 10px; animation-delay: 0.2s; }
+    .financial-icon .bar:nth-child(2) { height: 50px; left: 30px; animation-delay: 0.4s; }
+    .financial-icon .bar:nth-child(3) { height: 70px; left: 50px; animation-delay: 0.6s; }
+    .financial-icon .bar:nth-child(4) { height: 90px; left: 70px; animation-delay: 0.8s; }
+
+    /* Contact icon */
+    .contact-icon {
+      width: 100px;
+      height: 100px;
+      position: relative;
+      animation: pulse 2s infinite;
+    }
+
+    .contact-icon .circle {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      border: 3px solid var(--primary);
+      border-radius: 50%;
+      top: 10px;
+      left: 10px;
+    }
+
+    .contact-icon .hand {
+      position: absolute;
+      width: 30px;
+      height: 10px;
+      background: var(--secondary);
+      top: 40px;
+      left: 60px;
+      transform: rotate(45deg);
+      animation: wave 2s infinite;
+    }
+
+    /* Animations */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.05); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: rotate(0deg); }
+      10%, 30%, 50%, 70%, 90% { transform: rotate(-5deg); }
+      20%, 40%, 60%, 80% { transform: rotate(5deg); }
+    }
+
+    @keyframes wobble {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes spin {
+      0% { transform: rotateX(0) rotateY(0); }
+      100% { transform: rotateX(360deg) rotateY(360deg); }
+    }
+
+    @keyframes grow {
+      0% { height: 0; }
+      100% { height: var(--h); }
+    }
+
+    @keyframes wave {
+      0%, 100% { transform: rotate(45deg); }
+      50% { transform: rotate(60deg); }
+    }
+
+    /* Navigation elements */
+    .logo {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      height: 40px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    .logo img {
+      height: 100%;
+    }
+
+    .slide-nav {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      display: flex;
+      gap: 10px;
+      z-index: 100;
+    }
+
+    .nav-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(40, 167, 69, 0.3);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .nav-dot.active {
+      background: var(--primary);
+      transform: scale(1.3);
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 0.7rem;
+      color: rgba(52, 58, 64, 0.4);
+    }
+
+    /* Buttons and links */
+    .cta-button {
+      display: inline-block;
+      background: var(--gradient);
+      color: white;
+      padding: 0.7rem 1.8rem;
+      border-radius: 30px;
+      font-weight: 600;
+      margin-top: 1rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      text-decoration: none;
+      text-align: center;
+    }
+
+    .cta-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+    }
+
+    .contact-info {
+      display: flex;
+      gap: 1.2rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+      font-size: 0.9rem;
+    }
+
+    .contact-info a {
+      color: #6c757d;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .contact-info a:hover {
+      color: var(--primary);
+    }
+
+    .budget-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+      margin-top: 0.8rem;
+      display: inline-block;
+      font-size: 0.9rem;
+    }
+
+    .home-link {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #6c757d;
+      text-decoration: none;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      border: 1px solid rgba(40, 167, 69, 0.2);
+    }
+
+    .highlight {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Stats */
+    .stat-item {
+      text-align: center;
+      margin: 1rem 0;
+    }
+
+    .stat-item h3 {
+      font-size: 3rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--primary);
+    }
+
+    .stat-item p {
+      color: #6c757d;
+      font-size: 1rem;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .slide {
+        padding: 70px 5% 50px;
+      }
+      
+      .slide-title {
+        font-size: 2rem;
+      }
+      
+      .slide-subtitle {
+        font-size: 1.1rem;
+      }
+      
+      .content-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .tech-icon {
+        height: 150px;
+      }
+      
+      .contact-info {
+        gap: 0.8rem;
+        font-size: 0.8rem;
+      }
+    }
+
+    .simple-app-preview {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    }
+
+    .map-marker {
+    position: relative;
+    font-size: 2.5rem;
+    color: var(--primary);
+    margin-bottom: 1.5rem;
+    }
+
+    .pulse-effect {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(40, 167, 69, 0.3);
+    animation: pulse 2s infinite;
+    z-index: -1;
+    }
+
+    .activity-icons {
+    display: flex;
+    gap: 1rem;
+    }
+
+    .icon-container {
+    background: white;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    animation: float 3s ease-in-out infinite;
+    color: var(--primary);
+    font-size: 1.2rem;
+    }
+
+    /* Update the float animation to be more subtle */
+    @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+    }
+
+    @keyframes pulse {
+    0% { transform: scale(0.8); opacity: 0.7; }
+    70% { transform: scale(1.3); opacity: 0; }
+    100% { transform: scale(0.8); opacity: 0; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="slide-container">
+    <!-- Cover Slide -->
+    <div class="slide active">
+      <a href="#" class="logo">
+        <img src="https://i.ibb.co/q3mbmrGb/icon.png" alt="Roamify Logo">
+        Roamify
+      </a>
+      <div class="slide-header">
+        <h1 class="slide-title">Discover Your Next Adventure</h1>
+        <p class="slide-subtitle">AI-powered outdoor activity recommendations based on your location, preferences, and current conditions</p>
+      </div>
+      <div class="slide-content">
+        <div class="tech-icon">
+            <div class="simple-app-preview">
+              <div class="map-marker">
+                <i class="fas fa-map-marker-alt"></i>
+                <div class="pulse-effect"></div>
+              </div>
+              <div class="activity-icons">
+                <div class="icon-container" style="animation-delay: 0.2s;">
+                  <i class="fas fa-hiking"></i>
+                </div>
+                <div class="icon-container" style="animation-delay: 0.4s;">
+                  <i class="fas fa-bicycle"></i>
+                </div>
+                <div class="icon-container" style="animation-delay: 0.6s;">
+                  <i class="fas fa-swimming-pool"></i>
+                </div>
+                <div class="icon-container" style="animation-delay: 0.8s;">
+                  <i class="fas fa-umbrella-beach"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        <a href="index.html" class="cta-button">Learn More</a>
+      </div>
+      <div class="footer">Confidential - For Investor Review Only</div>
+    </div>
+
+    <!-- Problem Slide -->
+    <div class="slide">
+      <a href="#" class="logo">
+        <img src="https://i.ibb.co/q3mbmrGb/icon.png" alt="Roamify Logo">
+        Roamify
+      </a>
+      <div class="slide-header">
+        <h1 class="slide-title">The Adventure Planning Problem</h1>
+        <p class="slide-subtitle">People struggle to find and plan outdoor activities that match their interests and current conditions</p>
+      </div>
+      <div class="slide-content">
+        <div class="content-grid">
+          <div class="card">
+            <h3 class="card-title">Decision Fatigue</h3>
+            <div class="tech-icon">
+              <div class="confused-icon"></div>
+            </div>
+            <ul class="card-content">
+              <li>"What should we do today?" is a common struggle</li>
+              <li>Too many options lead to analysis paralysis</li>
+              <li>Time wasted researching and planning</li>
+            </ul>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">Weather Uncertainty</h3>
+            <div class="tech-icon">
+              <div class="weather-icon"></div>
+            </div>
+            <ul class="card-content">
+              <li>Plans ruined by unexpected weather changes</li>
+              <li>Difficulty finding weather-appropriate activities</li>
+              <li>Last-minute cancellations and disappointments</li>
+            </ul>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">Location Challenges</h3>
+            <div class="tech-icon">
+              <div class="location-icon"></div>
+            </div>
+            <ul class="card-content">
+              <li>Hard to discover hidden gems nearby</li>
+              <li>Limited knowledge of local attractions</li>
+              <li>Group coordination difficulties</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer">2</div>
+    </div>
+
+    <!-- Solution Slide -->
+    <div class="slide">
+      <a href="#" class="logo">
+        <img src="https://i.ibb.co/q3mbmrGb/icon.png" alt="Roamify Logo">
+        Roamify
+      </a>
+      <div class="slide-header">
+        <h1 class="slide-title">The Roamify Solution</h1>
+        <p class="slide-subtitle">AI-powered adventure discovery that eliminates the guesswork</p>
+      </div>
+      <div class="slide-content">
+        <div class="tech-icon">
+          <div class="ai-icon"></div>
+        </div>
+        <div class="content-grid">
+          <div class="card">
+            <h3 class="card-title">Key Features</h3>
+            <ul class="card-content">
+              <li><span class="highlight">Personalized recommendations</span> based on your interests</li>
+              <li><span class="highlight">Real-time weather integration</span> for perfect activity matching</li>
+              <li><span class="highlight">Smart itineraries</span> with optimized routes and timing</li>
+            </ul>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">Technical Specs</h3>
+            <ul class="card-content">
+              <li>Python & Flask backend</li>
+              <li>Machine learning recommendation engine</li>
+              <li>Geolocation and weather APIs</li>
+              <li>Responsive mobile-first design</li>
+            </ul>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">Differentiators</h3>
+            <ul class="card-content">
+              <li><span class="highlight">Context-aware suggestions</span> - location, weather, preferences</li>
+              <li><span class="highlight">Group planning</span> - find activities everyone will enjoy</li>
+              <li><span class="highlight">Activity tracking</span> - log and remember your adventures</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer">3</div>
+    </div>
+
+    <!-- Market Opportunity Slide -->
+    <div class="slide">
+      <a href="#" class="logo">
+        <img src="https://i.ibb.co/q3mbmrGb/icon.png" alt="Roamify Logo">
+        Roamify
+      </a>
+      <div class="slide-header">
+        <h1 class="slide-title">Market Opportunity</h1>
+        <p class="slide-subtitle">Addressing the growing demand for personalized outdoor experiences</p>
+      </div>
+      <div class="slide-content">
+        <div class="content-grid">
+          <div class="card">
+            <h3 class="card-title">Outdoor Recreation Market</h3>
+            <div class="tech-icon">
+              <div class="market-icon">
+                <div class="pie"></div>
+                <div class="pie"></div>
+              </div>
+            </div>
+            <ul class="card-content">
+              <li><span class="highlight">$887B</span> global outdoor recreation economy</li>
+              <li>168M+ outdoor participants in the US alone</li>
+              <li>Millennials prioritize experiences over possessions</li>
+            </ul>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">User Statistics</h3>
+            <div class="stat-item">
+              <h3>250+</h3>
+              <p>Countries and Territories</p>
+            </div>
+            <div class="stat-item">
+              <h3>250M+</h3>
+              <p>Locations Worldwide</p>
+            </div>
+            <div class="stat-item">
+              <h3>24/7</h3>
+              <p>Real-Time Updates</p>
+            </div>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">Target Segments</h3>
+            <div class="tech-icon">
+              <div class="business-icon">
+                <div class="cube">
+                  <div class="face front">Travelers</div>
+                  <div class="face back">Locals</div>
+                  <div class="face right">Families</div>
+                  <div class="face left">Couples</div>
+                  <div class="face top">Groups</div>
+                  <div class="face bottom">Solo</div>
+                </div>
+              </div>
+            </div>
+            <ul class="card-content">
+              <li>Tourists exploring new destinations</li>
+              <li>Locals looking for new experiences</li>
+              <li>Groups coordinating activities</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer">4</div>
+    </div>
+
+    <!-- Business Model Slide -->
+    <div class="slide">
+      <a href="#" class="logo">
+        <img src="https://i.ibb.co/q3mbmrGb/icon.png" alt="Roamify Logo">
+        Roamify
+      </a>
+      <div class="slide-header">
+        <h1 class="slide-title">Business Model</h1>
+        <p class="slide-subtitle">Multiple revenue streams with scalable growth</p>
+      </div>
+      <div class="slide-content">
+        <div class="content-grid">
+          <div class="card">
+            <h3 class="card-title">Product Offerings</h3>
+            <div class="tech-icon">
+              <div class="business-icon">
+                <div class="cube">
+                  <div class="face front">Free</div>
+                  <div class="face back">Pro</div>
+                  <div class="face right">Biz</div>
+                  <div class="face left">API</div>
+                  <div class="face top">Ads</div>
+                  <div class="face bottom">Data</div>
+                </div>
+              </div>
+            </div>
+            <ul class="card-content">
+              <li><span class="highlight">Freemium app</span> - Basic features free</li>
+              <li><span class="highlight">Premium subscriptions</span> - Advanced features</li>
+              <li><span class="highlight">Business accounts</span> - For tourism operators</li>
+            </ul>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">Revenue Streams</h3>
+            <div class="tech-icon">
+              <div class="financial-icon">
+                <div class="graph">
+                  <div class="bar" style="--h: 30px;"></div>
+                  <div class="bar" style="--h: 50px;"></div>
+                  <div class="bar" style="--h: 70px;"></div>
+                  <div class="bar" style="--h: 90px;"></div>
+                </div>
+              </div>
+            </div>
+            <ul class="card-content">
+              <li>Subscription revenue</li>
+              <li>Affiliate partnerships</li>
+              <li>Local business promotions</li>
+              <li>Data insights for tourism boards</li>
+            </ul>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">Partnership Strategy</h3>
+            <div class="tech-icon">
+              <div class="contact-icon">
+                <div class="circle"></div>
+                <div class="hand"></div>
+              </div>
+            </div>
+            <ul class="card-content">
+              <li>Tourism boards and destinations</li>
+              <li>Outdoor gear and apparel brands</li>
+              <li>Activity providers and booking platforms</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer">5</div>
+    </div>
+
+    <!-- Technology Slide -->
+    <div class="slide">
+      <a href="#" class="logo">
+        <img src="https://i.ibb.co/q3mbmrGb/icon.png" alt="Roamify Logo">
+        Roamify
+      </a>
+      <div class="slide-header">
+        <h1 class="slide-title">Technology Stack</h1>
+        <p class="slide-subtitle">Built with cutting-edge technologies for optimal performance</p>
+      </div>
+      <div class="slide-content">
+        <div class="content-grid">
+          <div class="card">
+            <h3 class="card-title">Core Technologies</h3>
+            <ul class="card-content">
+              <li><span class="highlight">Python & Flask</span> - Backend framework</li>
+              <li><span class="highlight">SQL Database</span> - Efficient data storage</li>
+              <li><span class="highlight">AI/ML Models</span> - Personalized recommendations</li>
+              <li><span class="highlight">Google Maps API</span> - Location services</li>
+            </ul>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">Advanced Features</h3>
+            <ul class="card-content">
+              <li><span class="highlight">Gemini AI</span> - Generative trip planning</li>
+              <li><span class="highlight">Weather API</span> - Real-time conditions</li>
+              <li><span class="highlight">Smart Filters</span> - Customizable search</li>
+              <li><span class="highlight">Dynamic Categories</span> - Interest-based</li>
+            </ul>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">Development Setup</h3>
+            <div class="code-block" style="background: #f8f9fa; border-radius: 8px; padding: 1rem; font-family: monospace; color: #343a40;">
+              <code>
+                git clone https://github.com/roamify<br>
+                cd roamify<br>
+                python -m venv venv<br>
+                pip install -r requirements.txt<br>
+                python run.py
+              </code>
+            </div>
+            <a href="#installation" class="budget-link">View Detailed Installation →</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer">6</div>
+    </div>
+
+    <!-- Contact Slide -->
+    <div class="slide" id="contact">
+      <a href="#" class="logo">
+        <img src="https://i.ibb.co/q3mbmrGb/icon.png" alt="Roamify Logo">
+        Roamify
+      </a>
+      <div class="slide-header">
+        <h1 class="slide-title">Investment Opportunity</h1>
+        <p class="slide-subtitle">Join us in revolutionizing how people discover outdoor adventures</p>
+      </div>
+      <div class="slide-content">
+        <div class="content-grid">
+          <div class="card">
+            <h3 class="card-title">Why Invest</h3>
+            <div class="tech-icon">
+              <div class="market-icon">
+                <div class="pie"></div>
+                <div class="pie"></div>
+              </div>
+            </div>
+            <ul class="card-content">
+              <li>First-mover in AI-powered adventure discovery</li>
+              <li>Massive addressable market with proven demand</li>
+              <li>Scalable technology platform</li>
+            </ul>
+          </div>
+          
+          <div class="card">
+            <h3 class="card-title">Next Steps</h3>
+            <div class="tech-icon">
+              <div class="contact-icon">
+                <div class="circle"></div>
+                <div class="hand"></div>
+              </div>
+            </div>
+            <ul class="card-content">
+              <li>Review detailed business plan</li>
+              <li>Product demonstration</li>
+              <li>Investment terms discussion</li>
+            </ul>
+          </div>
+        </div>
+        
+        <a href="mailto:info@roamify.com" class="cta-button">Contact for Due Diligence</a>
+        
+        <div class="contact-info">
+          <a href="https://twitter.com/roamify" target="_blank">Twitter</a>
+          <a href="https://linkedin.com/company/roamify" target="_blank">LinkedIn</a>
+          <a href="https://github.com/roamify" target="_blank">GitHub</a>
+          <a href="mailto:info@roamify.com">Email</a>
+        </div>
+      </div>
+      <a href="index.html" class="home-link">Return to Main Site</a>
+      <div class="footer">7</div>
+    </div>
+  </div>
+
+  <!-- Navigation Dots -->
+  <div class="slide-nav">
+    <div class="nav-dot active" data-slide="0"></div>
+    <div class="nav-dot" data-slide="1"></div>
+    <div class="nav-dot" data-slide="2"></div>
+    <div class="nav-dot" data-slide="3"></div>
+    <div class="nav-dot" data-slide="4"></div>
+    <div class="nav-dot" data-slide="5"></div>
+    <div class="nav-dot" data-slide="6"></div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const slides = document.querySelectorAll('.slide');
+      const dots = document.querySelectorAll('.nav-dot');
+      let currentSlide = 0;
+      let isAnimating = false;
+      
+      // Show initial slide
+      showSlide(currentSlide);
+      
+      // Keyboard navigation
+      document.addEventListener('keydown', function(e) {
+        if (isAnimating) return;
+        
+        switch(e.key) {
+          case 'ArrowRight':
+          case 'ArrowDown':
+          case 'PageDown':
+          case ' ':
+            nextSlide();
+            break;
+          case 'ArrowLeft':
+          case 'ArrowUp':
+          case 'PageUp':
+            prevSlide();
+            break;
+          case 'Home':
+            showSlide(0);
+            break;
+          case 'End':
+            showSlide(slides.length - 1);
+            break;
+        }
+      });
+      
+      // Dot navigation
+      dots.forEach(dot => {
+        dot.addEventListener('click', function() {
+          if (isAnimating) return;
+          const slideIndex = parseInt(this.getAttribute('data-slide'));
+          showSlide(slideIndex);
+        });
+      });
+      
+      // Touch/swipe support
+      let touchStartX = 0;
+      let touchEndX = 0;
+      
+      document.addEventListener('touchstart', function(e) {
+        touchStartX = e.changedTouches[0].screenX;
+      }, false);
+      
+      document.addEventListener('touchend', function(e) {
+        if (isAnimating) return;
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+      }, false);
+      
+      function handleSwipe() {
+        if (touchEndX < touchStartX - 50) {
+          nextSlide();
+        }
+        if (touchEndX > touchStartX + 50) {
+          prevSlide();
+        }
+      }
+      
+      function showSlide(n) {
+        isAnimating = true;
+        slides.forEach(slide => slide.classList.remove('active'));
+        dots.forEach(dot => dot.classList.remove('active'));
+        
+        currentSlide = (n + slides.length) % slides.length;
+        slides[currentSlide].classList.add('active');
+        dots[currentSlide].classList.add('active');
+        
+        // Ensure we're scrolled to top
+        slides[currentSlide].scrollTop = 0;
+        
+        // Reset animation lock after transition
+        setTimeout(() => {
+          isAnimating = false;
+        }, 500);
+      }
+      
+      function nextSlide() {
+        showSlide(currentSlide + 1);
+      }
+      
+      function prevSlide() {
+        showSlide(currentSlide - 1);
+      }
+    });
+  </script>
+
+</body>
+</html>
