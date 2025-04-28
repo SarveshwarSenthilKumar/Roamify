@@ -115,6 +115,5 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## 💬 Acknowledgements
 
-- Built at **Eureka Hacks 2025**  
 - Special thanks to the mentors, judges, and everyone who tested our app!  
 - Huge shoutout to [Pranav Bailoor](https://www.linkedin.com/in/pranavbailoor) for being an awesome teammate
